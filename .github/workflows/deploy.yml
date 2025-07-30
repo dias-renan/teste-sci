@@ -1,29 +1,27 @@
 name: Deploy PHP-FPM e NGINX
-
 on:
   push:
     branches:
-      - main
+      - main  # roda o deploy automático quando fizer push na branch "main"
 
 jobs:
   deploy:
+    name: Deploy on EC2
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout código
-      uses: actions/checkout@v3
+      - name: Checkout do código
+        uses: actions/checkout@v3
 
-    - name: Configurar SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+      - name: Conectar via SSH e fazer o deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/teste-sci
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
 
-    - name: Enviar arquivos para EC2
-      run: |
-        rsync -avz --exclude '.git' ./ ${{ secrets.USERNAME }}@${{ secrets.HOST }}:/home/ubuntu/teste-sci/
-
-    - name: Rodar Docker Compose na EC2
-      run: |
-        ssh ${{ secrets.USERNAME }}@${{ secrets.HOST }} "cd /home/ubuntu/teste-sci && docker compose up -d --build"
